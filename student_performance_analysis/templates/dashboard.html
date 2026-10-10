@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | Student Performance{% endblock %}
+{% block content %}
+  <section class="hero">
+    <div>
+      <p class="eyebrow">ACADEMIC OVERVIEW</p>
+      <h1>Student performance dashboard</h1>
+      <p class="muted">Track marks, attendance, and learning progress in one place.</p>
+    </div>
+    <a class="primary-button" href="{{ url_for('add_student') }}">＋ Add student</a>
+  </section>
+
+  <section class="stats-grid">
+    <article class="stat-card"><div class="stat-label">Total students</div><div class="stat-value">{{ total }}</div><div class="stat-note">Student records</div></article>
+    <article class="stat-card"><div class="stat-label">Average marks</div><div class="stat-value">{{ overall_average }}<small>/100</small></div><div class="stat-note">Across listed students</div></article>
+    <article class="stat-card"><div class="stat-label">Average attendance</div><div class="stat-value">{{ attendance_average }}<small>%</small></div><div class="stat-note">Class attendance</div></article>
+    <article class="stat-card warning-card"><div class="stat-label">Needs attention</div><div class="stat-value">{{ support_count }}</div><div class="stat-note">Average below 50 or attendance below 75%</div></article>
+  </section>
+
+  <section class="content-grid">
+    <article class="panel chart-panel">
+      <div class="panel-heading"><div><h2>Subject averages</h2><p class="muted">Average marks out of 100</p></div></div>
+      <div class="chart-wrap"><canvas id="subjectChart"></canvas></div>
+    </article>
+    <article class="panel">
+      <div class="panel-heading"><div><h2>Performance overview</h2><p class="muted">Average marks by student</p></div></div>
+      <div class="chart-wrap"><canvas id="studentChart"></canvas></div>
+    </article>
+  </section>
+
+  <section class="panel table-panel">
+    <div class="panel-heading">
+      <div><h2>Student records</h2><p class="muted">Search students and review their academic results.</p></div>
+      <input id="searchInput" class="search-input" type="search" placeholder="Search name or student ID..." aria-label="Search students">
+    </div>
+    {% if students %}
+    <div class="table-scroll">
+      <table id="studentTable">
+        <thead><tr><th>Student</th><th>Department</th><th>Semester</th><th>Maths</th><th>Python</th><th>DBMS</th><th>Average</th><th>Attendance</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+        {% for s in students %}
+          <tr>
+            <td><div class="student-cell"><span class="avatar">{{ s.name[:1]|upper }}</span><div><strong>{{ s.name }}</strong><small>{{ s.student_id }}</small></div></div></td>
+            <td>{{ s.department }}</td><td>{{ s.semester }}</td>
+            <td>{{ s.math|round(1) }}</td><td>{{ s.python|round(1) }}</td><td>{{ s.dbms|round(1) }}</td>
+            <td><strong>{{ s.average }}%</strong></td><td>{{ s.attendance }}%</td>
+            <td>{% if s.average < 50 or s.attendance < 75 %}<span class="pill pill-warning">Review</span>{% elif s.average >= 85 %}<span class="pill pill-good">Excellent</span>{% else %}<span class="pill pill-neutral">{{ s.grade }}</span>{% endif %}</td>
+            <td><form method="post" action="{{ url_for('delete_student', student_id=s.id) }}" onsubmit="return confirm('Delete this student record?');"><button class="delete-button" type="submit">Delete</button></form></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state"><h3>No student records yet</h3><p>Add your first student to start analyzing performance.</p><a class="primary-button" href="{{ url_for('add_student') }}">Add student</a></div>
+    {% endif %}
+  </section>
+  <script>
+    const subjectLabels = {{ subject_averages.keys()|list|tojson }};
+    const subjectValues = {{ subject_averages.values()|list|tojson }};
+    const studentNames = {{ students|map(attribute='name')|list|tojson }};
+    const studentAverages = {{ students|map(attribute='average')|list|tojson }};
+    new Chart(document.getElementById('subjectChart'), {
+      type: 'bar',
+      data: { labels: subjectLabels, datasets: [{ label: 'Average marks', data: subjectValues, backgroundColor: ['#6b8afd','#35b7a4','#f3b65d'], borderRadius: 8, maxBarThickness: 54 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100, grid: { color: '#edf0f6' } }, x: { grid: { display: false } } } }
+    });
+    new Chart(document.getElementById('studentChart'), {
+      type: 'bar',
+      data: { labels: studentNames, datasets: [{ label: 'Average marks', data: studentAverages, backgroundColor: '#7189f5', borderRadius: 7, maxBarThickness: 36 }] },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100, grid: { color: '#edf0f6' } }, y: { grid: { display: false } } } }
+    });
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.addEventListener('input', () => {
+      const query = searchInput.value.toLowerCase();
+      document.querySelectorAll('#studentTable tbody tr').forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
+      });
+    });
+  </script>
+{% endblock %}
